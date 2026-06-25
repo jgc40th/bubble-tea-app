@@ -626,18 +626,48 @@ function AdminView({ onSwitchConsumer }) {
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 function AppInner() {
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isCallback, setIsCallback] = useState(false)
   const { loading } = useAuth()
 
-  // Handle OAuth callback
+  // Handle OAuth callback — wait for Supabase to exchange the code for a session
   useEffect(() => {
-    if (window.location.pathname === '/auth/callback') {
-      supabase.auth.getSession().then(() => { window.location.href = '/' })
+    const path = window.location.pathname
+    const hash = window.location.hash
+    const search = window.location.search
+
+    // Detect callback: either path-based or hash/query token params
+    const isOAuthCallback =
+      path === '/auth/callback' ||
+      hash.includes('access_token') ||
+      search.includes('code=')
+
+    if (isOAuthCallback) {
+      setIsCallback(true)
+      // Give Supabase time to process the session from URL params
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          // Session established, go home cleanly
+          window.history.replaceState({}, '', '/')
+          setIsCallback(false)
+        } else {
+          // Retry once after short delay (code exchange may be in progress)
+          setTimeout(() => {
+            supabase.auth.getSession().then(() => {
+              window.history.replaceState({}, '', '/')
+              setIsCallback(false)
+            })
+          }, 1500)
+        }
+      })
     }
   }, [])
 
-  if (loading) return (
+  if (loading || isCallback) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#FDF6ED', fontFamily:'Noto Sans TC, sans-serif' }}>
-      <div style={{ textAlign:'center' }}><div style={{ fontSize:48, marginBottom:12 }}>🧋</div><div style={{ fontWeight:700, color:'#5D3A1A' }}>載入中...</div></div>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ fontSize:48, marginBottom:12 }}>🧋</div>
+        <div style={{ fontWeight:700, color:'#5D3A1A' }}>{isCallback ? 'LINE 登入處理中...' : '載入中...'}</div>
+      </div>
     </div>
   )
 
