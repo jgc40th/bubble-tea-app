@@ -17,9 +17,9 @@ const levelLabel = { general:'一般會員', silver:'銀卡會員', gold:'金卡
 const levelColor  = { general:'#8B6A40', silver:'#718096', gold:'#B7791F', vip:'#6B46C1' }
 const nextLevel   = { general:{ name:'銀卡', need:500 }, silver:{ name:'金卡', need:2000 }, gold:{ name:'VIP', need:5000 }, vip: null }
 
-export default function MemberZone({ onBack }) {
+export default function MemberZone({ onBack, tab: initTab = 'profile' }) {
   const { user, profile, refreshProfile } = useAuth()
-  const [tab, setTab] = useState('profile')
+  const [tab, setTab] = useState(initTab)
   const [orders, setOrders] = useState([])
   const [logs, setLogs] = useState([])
   const [coupons, setCoupons] = useState([])
