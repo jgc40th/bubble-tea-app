@@ -289,6 +289,7 @@ function ConsumerView({ onSwitchAdmin }) {
   const [showCart, setShowCart]     = useState(false)
   const [showAuth, setShowAuth]     = useState(false)
   const [showMember, setShowMember] = useState(false)
+  const [memberTab, setMemberTab]     = useState('profile')
   const [successOrder, setSuccessOrder] = useState(null)
   const [selStore, setSelStore]     = useState(STORES[0])
 
@@ -333,7 +334,15 @@ function ConsumerView({ onSwitchAdmin }) {
     setShowCart(false)
   }
 
-  if (showMember) return <MemberZone onBack={() => setShowMember(false)} />
+  if (showMember) return <MemberZone onBack={() => setShowMember(false)} tab={memberTab} />
+
+  // Greeting based on time of day
+  const greeting = (() => {
+    const h = new Date().getHours()
+    if (h < 11) return '早安'; if (h < 14) return '午安'
+    if (h < 18) return '下午好'; return '晚安'
+  })()
+  const memberName = profile?.name || user?.user_metadata?.name || '會員'
 
   return (
     <div style={S.page}>
@@ -343,11 +352,40 @@ function ConsumerView({ onSwitchAdmin }) {
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {user ? (
             <>
-              <button style={{ ...S.btnOut, fontSize:12 }} onClick={() => setShowMember(true)}>
-                👤 {profile?.name || '會員中心'}
-                {(profile?.points||0) > 0 && <span style={{ marginLeft:6, background:'#F5A623', color:'#2D1B0E', borderRadius:20, padding:'1px 7px', fontSize:11 }}>⭐{profile.points}</span>}
-              </button>
-              <button style={{ ...S.btnOut, fontSize:12 }} onClick={signOut}>登出</button>
+              {/* Personalized greeting */}
+              <span style={{ fontSize:13, color:'#F5E6C8', opacity:.9 }}>
+                {greeting}，<span style={{ color:'#F5A623', fontWeight:800 }}>{memberName}</span> 👋
+              </span>
+              {/* Points badge */}
+              {(profile?.points||0) > 0 && (
+                <span style={{ background:'rgba(245,166,35,0.15)', border:'1px solid #F5A623', color:'#F5A623', borderRadius:20, padding:'3px 10px', fontSize:12, fontWeight:700 }}>
+                  ⭐ {profile.points} 點
+                </span>
+              )}
+              {/* 會員專區 with quick links */}
+              <div style={{ position:'relative' }}
+                onMouseEnter={e => e.currentTarget.querySelector('.mdrop').style.display='block'}
+                onMouseLeave={e => e.currentTarget.querySelector('.mdrop').style.display='none'}>
+                <button style={{ ...S.btn, fontSize:13 }} onClick={() => { setMemberTab('profile'); setShowMember(true) }}>
+                  👤 會員專區 ▾
+                </button>
+                <div className="mdrop" style={{ display:'none', position:'absolute', top:'calc(100% + 6px)', right:0, background:'#fff', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.18)', minWidth:170, zIndex:300, overflow:'hidden', border:'1px solid #F0E4D0' }}>
+                  {[['📋','我的訂單','orders'],['👤','基本資料','profile'],['🎫','我的優惠券','coupons'],['⭐','點數紀錄','points']].map(([icon,label,tabId]) => (
+                    <button key={label} style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'11px 16px', border:'none', borderBottom:'1px solid #F5EDE0', background:'none', cursor:'pointer', fontSize:14, color:'#2D1B0E', textAlign:'left', fontFamily:'inherit' }}
+                      onMouseEnter={e => e.currentTarget.style.background='#FDF6ED'}
+                      onMouseLeave={e => e.currentTarget.style.background='none'}
+                      onClick={() => { setMemberTab(tabId); setShowMember(true) }}>
+                      {icon} {label}
+                    </button>
+                  ))}
+                  <button style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'11px 16px', border:'none', background:'none', cursor:'pointer', fontSize:14, color:'#E53E3E', textAlign:'left', fontFamily:'inherit' }}
+                    onMouseEnter={e => e.currentTarget.style.background='#FFF5F5'}
+                    onMouseLeave={e => e.currentTarget.style.background='none'}
+                    onClick={signOut}>
+                    🚪 登出
+                  </button>
+                </div>
+              </div>
             </>
           ) : (
             <button style={S.btn} onClick={() => setShowAuth(true)}>登入 / 註冊</button>
