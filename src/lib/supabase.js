@@ -29,9 +29,8 @@ export async function signOut() {
 // LINE OAuth — redirect to LINE then Supabase handles callback
 export function signInWithLine() {
   return supabase.auth.signInWithOAuth({
-    provider: 'custom',
+    provider: 'custom:line',
     options: {
-      providerId: 'line',
       redirectTo: `${window.location.origin}/auth/callback`,
       scopes: 'profile openid email',
     },
