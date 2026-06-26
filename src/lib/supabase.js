@@ -6,8 +6,8 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    flowType: 'implicit',        // Use implicit flow so token returns in URL hash
-    detectSessionInUrl: true,    // Auto-detect and store session from URL
+    flowType: 'pkce',
+    detectSessionInUrl: false,   // We handle code exchange manually in App.jsx
     persistSession: true,
     autoRefreshToken: true,
   }
@@ -38,8 +38,8 @@ export function signInWithLine() {
   return supabase.auth.signInWithOAuth({
     provider: 'custom:line',
     options: {
-      redirectTo: `${window.location.origin}/`,
-      scopes: 'profile openid email',
+      redirectTo: `${window.location.origin}/?callback=1`,
+      scopes: 'openid email profile',
     },
   })
 }
