@@ -629,36 +629,38 @@ function AppInner() {
   const [isCallback, setIsCallback] = useState(false)
   const { loading } = useAuth()
 
-  // Handle OAuth callback — wait for Supabase to exchange the code for a session
+  // Handle OAuth PKCE callback — exchange code for session
   useEffect(() => {
-    const path = window.location.pathname
-    const hash = window.location.hash
     const search = window.location.search
+    const hash   = window.location.hash
+    const code   = new URLSearchParams(search).get('code') || new URLSearchParams(hash.replace('#','?')).get('code')
+    const errorParam = new URLSearchParams(search).get('error')
 
-    // Detect callback: either path-based or hash/query token params
-    const isOAuthCallback =
-      path === '/auth/callback' ||
-      hash.includes('access_token') ||
-      search.includes('code=')
+    if (errorParam) {
+      console.error('OAuth error:', new URLSearchParams(search).get('error_description'))
+      window.history.replaceState({}, '', '/')
+      return
+    }
 
-    if (isOAuthCallback) {
+    if (code) {
+      // PKCE flow: exchange the code for a session
       setIsCallback(true)
-      // Give Supabase time to process the session from URL params
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) {
-          // Session established, go home cleanly
-          window.history.replaceState({}, '', '/')
-          setIsCallback(false)
-        } else {
-          // Retry once after short delay (code exchange may be in progress)
-          setTimeout(() => {
-            supabase.auth.getSession().then(() => {
-              window.history.replaceState({}, '', '/')
-              setIsCallback(false)
-            })
-          }, 1500)
-        }
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        if (error) console.error('exchangeCodeForSession error:', error)
+        else console.log('Session established:', data.session?.user?.id)
+        window.history.replaceState({}, '', '/')
+        setIsCallback(false)
       })
+      return
+    }
+
+    if (hash.includes('access_token')) {
+      // Implicit flow fallback: Supabase detects token from hash automatically
+      setIsCallback(true)
+      setTimeout(() => {
+        window.history.replaceState({}, '', '/')
+        setIsCallback(false)
+      }, 800)
     }
   }, [])
 
