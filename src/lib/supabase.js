@@ -31,7 +31,7 @@ export function signInWithLine() {
   return supabase.auth.signInWithOAuth({
     provider: 'custom:line',
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: `${window.location.origin}/`,
       scopes: 'profile openid email',
     },
   })
