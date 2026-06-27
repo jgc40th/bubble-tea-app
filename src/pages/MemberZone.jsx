@@ -26,6 +26,7 @@ export default function MemberZone({ onBack, tab: initTab = 'profile' }) {
   const [editForm, setEditForm] = useState({ name:'', phone:'', birthday:'' })
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [expandedOrder, setExpandedOrder] = useState(null)
 
   useEffect(() => {
     if (profile) setEditForm({ name: profile.name || '', phone: profile.phone || '', birthday: profile.birthday || '' })
@@ -115,29 +116,83 @@ export default function MemberZone({ onBack, tab: initTab = 'profile' }) {
           <div>
             {orders.length === 0
               ? <div style={{ textAlign:'center', padding:'60px 0', color:'#8B6A40' }}>還沒有訂單紀錄</div>
-              : orders.map(o => (
-                <div key={o.id} style={S.card}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
-                    <div>
-                      <div style={{ fontWeight:900, fontSize:22, color:'#C05621' }}>{o.order_number}</div>
-                      <div style={{ fontSize:12, color:'#8B6A40' }}>{o.stores?.name} ｜ {new Date(o.created_at).toLocaleString('zh-TW')}</div>
-                    </div>
-                    <span style={{ background: (S.statusColor[o.status]||['#EDF2F7','#4A5568'])[0], color: (S.statusColor[o.status]||['#EDF2F7','#4A5568'])[1], borderRadius:20, padding:'4px 14px', fontWeight:700, fontSize:13 }}>{o.status}</span>
-                  </div>
-                  <div style={{ borderTop:'1px solid #F0E4D0', paddingTop:12 }}>
-                    {o.order_items?.map((item,i) => (
-                      <div key={i} style={{ fontSize:13, color:'#5D3A1A', marginBottom:4 }}>
-                        • {item.product_name} × {item.qty}
-                        <span style={{ color:'#8B6A40', marginLeft:8 }}>{item.sweetness} / {item.ice}{item.toppings?.length ? ' / ' + item.toppings.join(', ') : ''}</span>
+              : orders.map(o => {
+                const isExpanded = expandedOrder === o.id
+                const sc = S.statusColor[o.status] || ['#EDF2F7','#4A5568']
+                return (
+                  <div key={o.id} style={{ ...S.card, padding:0, overflow:'hidden' }}>
+                    {/* Order header — clickable to expand */}
+                    <div style={{ padding:'18px 20px', cursor:'pointer', userSelect:'none' }}
+                      onClick={() => setExpandedOrder(isExpanded ? null : o.id)}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                          <div style={{ fontWeight:900, fontSize:22, color:'#C05621' }}>{o.order_number}</div>
+                          <span style={{ background:sc[0], color:sc[1], borderRadius:20, padding:'3px 12px', fontWeight:700, fontSize:12 }}>{o.status}</span>
+                        </div>
+                        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                          <span style={{ fontWeight:800, color:'#C05621', fontSize:16 }}>NT${o.total}</span>
+                          <span style={{ fontSize:18, color:'#8B6A40', transition:'transform .2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display:'inline-block' }}>▾</span>
+                        </div>
                       </div>
-                    ))}
-                    <div style={{ display:'flex', justifyContent:'space-between', marginTop:10 }}>
-                      <span style={{ fontSize:13, color:'#8B6A40' }}>獲得 {o.points_earned} 點</span>
-                      <span style={{ fontWeight:800, color:'#C05621' }}>NT${o.total}</span>
+                      <div style={{ fontSize:12, color:'#8B6A40', marginTop:6, display:'flex', gap:16 }}>
+                        <span>📍 {o.stores?.name}</span>
+                        <span>🕐 {new Date(o.created_at).toLocaleString('zh-TW')}</span>
+                        <span>💳 {o.payment_method}</span>
+                        {o.points_earned > 0 && <span style={{ color:'#6B46C1' }}>⭐ +{o.points_earned} 點</span>}
+                      </div>
                     </div>
+
+                    {/* Order detail — expandable */}
+                    {isExpanded && (
+                      <div style={{ borderTop:'1.5px solid #F0E4D0', background:'#FDF9F4' }}>
+                        {/* Items */}
+                        <div style={{ padding:'16px 20px' }}>
+                          <div style={{ fontWeight:700, fontSize:13, color:'#5D3A1A', marginBottom:12 }}>📋 訂單明細</div>
+                          {o.order_items?.map((item, i) => (
+                            <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'10px 0', borderBottom: i < o.order_items.length-1 ? '1px solid #F0E4D0' : 'none' }}>
+                              <div style={{ flex:1 }}>
+                                <div style={{ fontWeight:700, fontSize:14 }}>{item.product_name}</div>
+                                <div style={{ fontSize:12, color:'#8B6A40', marginTop:3, display:'flex', flexWrap:'wrap', gap:6 }}>
+                                  <span style={{ background:'#F0E8DC', borderRadius:6, padding:'2px 8px' }}>{item.size}</span>
+                                  <span style={{ background:'#F0E8DC', borderRadius:6, padding:'2px 8px' }}>{item.sweetness}</span>
+                                  <span style={{ background:'#F0E8DC', borderRadius:6, padding:'2px 8px' }}>{item.ice}</span>
+                                  {item.toppings?.filter(Boolean).map((t,j) => (
+                                    <span key={j} style={{ background:'#FDF0DC', color:'#C05621', borderRadius:6, padding:'2px 8px' }}>+{t}</span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div style={{ textAlign:'right', flexShrink:0, marginLeft:16 }}>
+                                <div style={{ fontSize:12, color:'#8B6A40' }}>× {item.qty}</div>
+                                <div style={{ fontWeight:700, color:'#2D1B0E' }}>NT${item.unit_price * item.qty}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Price summary */}
+                        <div style={{ padding:'12px 20px 16px', borderTop:'1px solid #F0E4D0' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#8B6A40', marginBottom:4 }}>
+                            <span>小計</span><span>NT${o.subtotal}</span>
+                          </div>
+                          {o.discount > 0 && (
+                            <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#276749', marginBottom:4 }}>
+                              <span>優惠折抵</span><span>-NT${o.discount}</span>
+                            </div>
+                          )}
+                          {o.points_used > 0 && (
+                            <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#6B46C1', marginBottom:4 }}>
+                              <span>點數折抵</span><span>-NT${o.points_used}</span>
+                            </div>
+                          )}
+                          <div style={{ display:'flex', justifyContent:'space-between', fontWeight:900, fontSize:16, paddingTop:8, borderTop:'1.5px solid #E8D5B7', marginTop:4 }}>
+                            <span>總計</span><span style={{ color:'#C05621' }}>NT${o.total}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
           </div>
         )}
 
