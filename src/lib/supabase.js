@@ -211,3 +211,43 @@ export async function adminGrantPoints(userId, points, reason) {
   })
   return { data, error }
 }
+
+// ── Point Rules ───────────────────────────────────────────────
+
+export async function fetchPointRules() {
+  const { data, error } = await supabase
+    .from('point_rules')
+    .select('*')
+    .eq('active', true)
+  return { data, error }
+}
+
+export async function adminUpdatePointRule(ruleType, fields) {
+  const { data, error } = await supabase.rpc('admin_update_point_rule', {
+    p_rule_type:             ruleType,
+    p_spend_amount:          fields.spend_amount,
+    p_earn_points:           fields.earn_points,
+    p_redeem_points:         fields.redeem_points,
+    p_redeem_amount:         fields.redeem_amount,
+    p_min_order_for_redeem:  fields.min_order_for_redeem,
+    p_max_redeem_percent:    fields.max_redeem_percent,
+  })
+  return { data, error }
+}
+
+// 計算可獲得點數
+export function calcEarnPoints(total, earnRule) {
+  if (!earnRule) return 0
+  return Math.floor(total / earnRule.spend_amount) * earnRule.earn_points
+}
+
+// 計算最多可折抵金額
+export function calcMaxRedeem(subtotal, pointBalance, redeemRule) {
+  if (!redeemRule || pointBalance <= 0) return { maxPoints: 0, maxAmount: 0 }
+  if (subtotal < redeemRule.min_order_for_redeem) return { maxPoints: 0, maxAmount: 0 }
+  const maxByPercent = Math.floor(subtotal * redeemRule.max_redeem_percent / 100)
+  const maxByPoints  = Math.floor(pointBalance / redeemRule.redeem_points) * redeemRule.redeem_amount
+  const maxAmount    = Math.min(maxByPercent, maxByPoints, subtotal)
+  const maxPoints    = Math.ceil(maxAmount / redeemRule.redeem_amount) * redeemRule.redeem_points
+  return { maxPoints, maxAmount }
+}
