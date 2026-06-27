@@ -39,7 +39,7 @@ export function signInWithLine() {
     provider: 'custom:line',
     options: {
       redirectTo: `${window.location.origin}/?callback=1`,
-      scopes: 'profile email',  // No 'openid' — LINE uses HS256 which Supabase rejects
+      scopes: 'openid profile email',  // No 'openid' — LINE uses HS256 which Supabase rejects
     },
   })
 }
