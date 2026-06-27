@@ -3,11 +3,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthModal from './components/AuthModal'
 import MemberZone from './pages/MemberZone'
 import AdminMembers from './pages/AdminMembers'
+import AdminPointRules from './pages/AdminPointRules'
 import {
   supabase, signOut,
   fetchCategories, fetchProducts,
   validateCoupon, fetchMemberCoupons,
-  createOrder,
+  createOrder, fetchPointRules,
+  calcEarnPoints, calcMaxRedeem,
 } from './lib/supabase'
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -137,15 +139,25 @@ function CartModal({ cart, onRemove, onCheckout, onClose, user, profile }) {
   const [usePoints, setUsePoints]   = useState(0)
   const [memberCoupons, setMemberCoupons] = useState([])
   const [loading, setLoading]       = useState(false)
+  const [pointRules, setPointRules] = useState({ earn: null, redeem: null })
 
   useEffect(() => {
     if (user) fetchMemberCoupons(user.id).then(r => setMemberCoupons(r.data || []))
+    fetchPointRules().then(({ data }) => {
+      if (!data) return
+      setPointRules({
+        earn:   data.find(r => r.rule_type === 'earn'),
+        redeem: data.find(r => r.rule_type === 'redeem'),
+      })
+    })
   }, [user])
 
-  const subtotal    = cart.reduce((s,i) => s+i.unitPrice*i.qty, 0)
-  const couponSave  = !coupon ? 0 : coupon.discount_type === 'percent' ? Math.round(subtotal*(coupon.discount_value/100)) : coupon.discount_value
-  const pointsSave  = Math.min(usePoints, profile?.points || 0)
-  const total       = Math.max(0, subtotal - couponSave - pointsSave)
+  const subtotal   = cart.reduce((s,i) => s+i.unitPrice*i.qty, 0)
+  const couponSave = !coupon ? 0 : coupon.discount_type === 'percent' ? Math.round(subtotal*(coupon.discount_value/100)) : coupon.discount_value
+  const { maxPoints, maxAmount } = calcMaxRedeem(subtotal - couponSave, profile?.points || 0, pointRules.redeem)
+  const pointsSave = Math.min(usePoints, maxAmount)
+  const total      = Math.max(0, subtotal - couponSave - pointsSave)
+  const willEarn   = user ? calcEarnPoints(total, pointRules.earn) : 0
 
   const applyCoupon = async (code) => {
     const { data, error } = await validateCoupon(code || couponCode)
@@ -155,7 +167,7 @@ function CartModal({ cart, onRemove, onCheckout, onClose, user, profile }) {
 
   const handleCheckout = async () => {
     setLoading(true)
-    await onCheckout({ payment, coupon, total, subtotal, discount: couponSave, pointsUsed: pointsSave })
+    await onCheckout({ payment, coupon, total, subtotal, discount: couponSave, pointsUsed: pointsSave, pointsEarned: willEarn })
     setLoading(false)
   }
 
@@ -204,16 +216,33 @@ function CartModal({ cart, onRemove, onCheckout, onClose, user, profile }) {
             {couponMsg && <div style={{ fontSize:12, marginTop:6, color: coupon ? '#276749' : '#C53030' }}>{couponMsg}</div>}
 
             {/* Points */}
-            {user && (profile?.points||0) > 0 && (
+            {user && (profile?.points||0) > 0 && pointRules.redeem && (
               <div style={{ marginTop:14, background:'#FDF6ED', borderRadius:10, padding:14 }}>
-                <div style={{ fontWeight:700, fontSize:13, marginBottom:8 }}>⭐ 使用點數折抵（可用：{profile.points} 點）</div>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <input type="range" min={0} max={Math.min(profile.points, subtotal)} value={usePoints}
-                    onChange={e => setUsePoints(Number(e.target.value))}
-                    style={{ flex:1, accentColor:'#F5A623' }} />
-                  <span style={{ fontWeight:800, color:'#C05621', minWidth:70 }}>-NT${pointsSave}</span>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                  <div style={{ fontWeight:700, fontSize:13 }}>⭐ 使用點數折抵</div>
+                  <span style={{ fontSize:12, color:'#8B6A40' }}>可用：{profile.points} 點</span>
                 </div>
-                <div style={{ fontSize:12, color:'#8B6A40', marginTop:4 }}>使用 {usePoints} 點 = 折抵 NT${pointsSave}</div>
+                {maxAmount === 0 ? (
+                  <div style={{ fontSize:12, color:'#E53E3E' }}>
+                    {(subtotal - couponSave) < pointRules.redeem.min_order_for_redeem
+                      ? `需消費滿 NT$${pointRules.redeem.min_order_for_redeem} 才可使用點數`
+                      : '點數不足以折抵'}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <input type="range" min={0} max={maxPoints} step={pointRules.redeem.redeem_points} value={usePoints}
+                        onChange={e => setUsePoints(Number(e.target.value))}
+                        style={{ flex:1, accentColor:'#F5A623' }} />
+                      <span style={{ fontWeight:800, color:'#C05621', minWidth:70 }}>-NT${pointsSave}</span>
+                    </div>
+                    <div style={{ fontSize:12, color:'#8B6A40', marginTop:4 }}>
+                      使用 {usePoints} 點 = 折抵 NT${pointsSave}
+                      ｜每 {pointRules.redeem.redeem_points} 點折 NT${pointRules.redeem.redeem_amount}
+                      ｜最多折抵 {pointRules.redeem.max_redeem_percent}%
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -233,7 +262,7 @@ function CartModal({ cart, onRemove, onCheckout, onClose, user, profile }) {
               <div style={{ display:'flex', justifyContent:'space-between', fontWeight:900, fontSize:20, marginTop:8, paddingTop:8, borderTop:'1.5px solid #E8D5B7' }}>
                 <span>總計</span><span style={{ color:'#C05621' }}>NT${total}</span>
               </div>
-              {user && <div style={{ fontSize:12, color:'#8B6A40', marginTop:6 }}>本次消費可累積 {total} 點</div>}
+              {user && willEarn > 0 && <div style={{ fontSize:12, color:'#6B46C1', marginTop:6 }}>⭐ 本次消費可累積 {willEarn} 點</div>}
             </div>
 
             <button style={{ ...S.btn, width:'100%', marginTop:16, padding:'14px', fontSize:16 }}
@@ -302,9 +331,9 @@ function ConsumerView({ onSwitchAdmin }) {
     .filter(p => !selCategory || p.category_id === selCategory)
     .filter(p => !search || p.name.includes(search) || (p.description||'').includes(search))
 
-  const checkout = async ({ payment, coupon, total, subtotal, discount, pointsUsed }) => {
+  const checkout = async ({ payment, coupon, total, subtotal, discount, pointsUsed, pointsEarned: pointsEarnedParam }) => {
     const orderNum = genOrderNum()
-    const pointsEarned = user ? total : 0
+    const pointsEarned = pointsEarnedParam || 0
 
     const orderData = {
       order_number:   orderNum,
@@ -487,7 +516,7 @@ function AdminView({ onSwitchConsumer }) {
     setEditId(null)
   }
 
-  const tabs = [['orders','📋 訂單管理'],['products','🧋 商品管理'],['categories','📁 類別管理'],['members','👥 會員管理']]
+  const tabs = [['orders','📋 訂單管理'],['products','🧋 商品管理'],['categories','📁 類別管理'],['members','👥 會員管理'],['pointrules','⭐ 點數規則']]
 
   return (
     <div style={{ ...S.page, background:'#F7F4F0' }}>
@@ -618,6 +647,9 @@ function AdminView({ onSwitchConsumer }) {
 
         {/* Members */}
         {tab === 'members' && <AdminMembers />}
+
+        {/* Point Rules */}
+        {tab === 'pointrules' && <AdminPointRules />}
       </div>
     </div>
   )
