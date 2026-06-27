@@ -111,31 +111,22 @@ export async function validateCoupon(code) {
 export async function createOrder(orderData) {
   const { items, ...order } = orderData
 
-  // Insert order
-  const { data: newOrder, error: orderError } = await supabase
-    .from('orders')
-    .insert(order)
-    .select()
-    .single()
-  if (orderError) return { error: orderError }
+  const { data, error } = await supabase.rpc('create_order', {
+    p_order_number:   order.order_number,
+    p_user_id:        order.user_id || null,
+    p_store_id:       order.store_id,
+    p_payment_method: order.payment_method,
+    p_subtotal:       order.subtotal,
+    p_discount:       order.discount || 0,
+    p_points_used:    order.points_used || 0,
+    p_total:          order.total,
+    p_coupon_id:      order.coupon_id || null,
+    p_points_earned:  order.points_earned || 0,
+    p_items:          items,
+  })
 
-  // Insert items
-  const itemRows = items.map(item => ({
-    order_id: newOrder.id,
-    product_id: item.productId,
-    product_name: item.name,
-    unit_price: item.unitPrice,
-    qty: item.qty,
-    size: item.size,
-    sweetness: item.sweetness,
-    ice: item.ice,
-    toppings: item.toppings || [],
-    subtotal: item.unitPrice * item.qty,
-  }))
-  const { error: itemsError } = await supabase.from('order_items').insert(itemRows)
-  if (itemsError) return { error: itemsError }
-
-  return { data: newOrder }
+  if (error) return { error }
+  return { data: { id: data, order_number: order.order_number } }
 }
 
 export async function fetchMyOrders(userId) {
