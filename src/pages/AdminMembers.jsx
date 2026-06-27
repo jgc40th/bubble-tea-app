@@ -84,15 +84,41 @@ export default function AdminMembers() {
               <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>會員詳情</div>
               {msg && <div style={{ color: msg.startsWith('✅') ? '#276749' : '#C53030', fontSize:13, marginBottom:10 }}>{msg}</div>}
 
-              <div style={{ fontSize:13, lineHeight:2, color:'#5D3A1A', marginBottom:16 }}>
-                <div><b>姓名：</b>{selected.name}</div>
-                <div><b>Email：</b>{selected.email}</div>
-                <div><b>手機：</b>{selected.phone || '未設定'}</div>
-                <div><b>生日：</b>{selected.birthday || '未設定'}</div>
-                <div><b>點數：</b>{selected.points || 0}</div>
-                <div><b>等級：</b>{S.levelLabel[selected.level]}</div>
-                <div><b>LINE：</b>{selected.line_uid ? '已綁定' : '未綁定'}</div>
-                <div><b>加入：</b>{new Date(selected.created_at).toLocaleDateString('zh-TW')}</div>
+              <div style={{ fontSize:13, lineHeight:2.2, color:'#5D3A1A', marginBottom:16 }}>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span><b>姓名</b></span>
+                  <span>{selected.name || '未設定'}</span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span><b>Email</b></span>
+                  <span style={{ fontSize:12 }}>{selected.email || '—'}</span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span><b>手機</b></span>
+                  <span>{selected.phone || '未設定'}</span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span><b>生日</b></span>
+                  <span>{selected.birthday || '未設定'}</span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span><b>點數</b></span>
+                  <span style={{ color:'#C05621', fontWeight:700 }}>⭐ {selected.points || 0} 點</span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span><b>等級</b></span>
+                  <span style={{ color: S.levelColor[selected.level], fontWeight:700 }}>{S.levelLabel[selected.level]}</span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span><b>LINE 綁定</b></span>
+                  <span style={{ color: selected.line_uid ? '#276749' : '#A0AEC0', fontWeight:700 }}>
+                    {selected.line_uid ? '✅ 已綁定' : '—— 未綁定'}
+                  </span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span><b>加入日期</b></span>
+                  <span>{new Date(selected.created_at).toLocaleDateString('zh-TW')}</span>
+                </div>
               </div>
 
               {/* Grant points */}
