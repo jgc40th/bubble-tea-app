@@ -477,6 +477,7 @@ function AdminView({ onSwitchConsumer }) {
   const [tab, setTab]           = useState('orders')
   const [orders, setOrders]     = useState([])
   const [products, setProducts] = useState([])
+  const [expandedOrder, setExpandedOrder] = useState(null)
   const [categories, setCategories] = useState([])
   const [editId, setEditId]     = useState(null)
   const [selStore, setSelStore] = useState(null)
@@ -546,24 +547,97 @@ function AdminView({ onSwitchConsumer }) {
         {tab === 'orders' && (
           <div>
             <div style={{ fontWeight:800, fontSize:18, marginBottom:16 }}>訂單管理</div>
-            {orders.map(o => (
-              <div key={o.id} style={{ background:'#fff', borderRadius:14, boxShadow:'0 2px 8px rgba(0,0,0,0.06)', padding:18, marginBottom:10, display:'flex', gap:16, flexWrap:'wrap', alignItems:'center' }}>
-                <div style={{ fontWeight:900, fontSize:26, color:'#C05621', minWidth:64 }}>{o.order_number}</div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:700 }}>{o.stores?.name} ｜ {new Date(o.created_at).toLocaleTimeString('zh-TW')} ｜ {o.payment_method}</div>
-                  <div style={{ fontSize:13, color:'#5D3A1A', marginTop:3 }}>
-                    {o.profiles ? `👤 ${o.profiles.name}` : '訪客'} ｜ {o.order_items?.map(i=>`${i.product_name}×${i.qty}`).join('、')}
+            {orders.length === 0 && <div style={{ textAlign:'center', padding:'40px 0', color:'#8B6A40' }}>目前沒有訂單</div>}
+            {orders.map(o => {
+              const isExpanded = expandedOrder === o.id
+              const sc = statusColor[o.status] || ['#EDF2F7','#4A5568']
+              return (
+                <div key={o.id} style={{ background:'#fff', borderRadius:14, boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:10, overflow:'hidden' }}>
+                  {/* Header row */}
+                  <div style={{ padding:'16px 18px', display:'flex', gap:16, flexWrap:'wrap', alignItems:'center', cursor:'pointer' }}
+                    onClick={() => setExpandedOrder(isExpanded ? null : o.id)}>
+                    <div style={{ fontWeight:900, fontSize:24, color:'#C05621', minWidth:60 }}>{o.order_number}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:700, fontSize:14 }}>
+                        {o.stores?.name} ｜ {new Date(o.created_at).toLocaleString('zh-TW')} ｜ {o.payment_method}
+                      </div>
+                      <div style={{ fontSize:13, color:'#5D3A1A', marginTop:3 }}>
+                        {o.profiles ? `👤 ${o.profiles.name}${o.profiles.phone ? '　📞 '+o.profiles.phone : ''}` : '👤 訪客'}
+                      </div>
+                      <div style={{ fontSize:13, color:'#8B6A40', marginTop:2 }}>
+                        {o.order_items?.map(i=>`${i.product_name}×${i.qty}`).join('、')}
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ background:sc[0], color:sc[1], borderRadius:20, padding:'4px 14px', fontWeight:700, fontSize:13 }}>{o.status}</span>
+                        <span style={{ fontSize:18, color:'#8B6A40', transform: isExpanded?'rotate(180deg)':'rotate(0deg)', transition:'transform .2s', display:'inline-block' }}>▾</span>
+                      </div>
+                      <div style={{ fontWeight:900, color:'#C05621', fontSize:16 }}>NT${o.total}</div>
+                      {o.status !== '已完成可取餐' && o.status !== '已取消' && (
+                        <button style={S.btnGreen} onClick={e => { e.stopPropagation(); advanceStatus(o) }}>
+                          → {statusOrder[statusOrder.indexOf(o.status)+1]}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontWeight:800, color:'#C05621', marginTop:4 }}>NT${o.total}</div>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
-                  <span style={{ background:statusColor[o.status]?.[0], color:statusColor[o.status]?.[1], borderRadius:20, padding:'4px 14px', fontWeight:700, fontSize:13 }}>{o.status}</span>
-                  {o.status !== '已完成可取餐' && o.status !== '已取消' && (
-                    <button style={S.btnGreen} onClick={() => advanceStatus(o)}>→ {statusOrder[statusOrder.indexOf(o.status)+1]}</button>
+
+                  {/* Expandable detail */}
+                  {isExpanded && (
+                    <div style={{ borderTop:'1.5px solid #F0E4D0', background:'#FDF9F4' }}>
+                      {/* Items */}
+                      <div style={{ padding:'16px 18px' }}>
+                        <div style={{ fontWeight:700, fontSize:13, color:'#5D3A1A', marginBottom:12 }}>📋 訂單明細</div>
+                        {o.order_items?.map((item, i) => (
+                          <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'10px 0', borderBottom: i < o.order_items.length-1 ? '1px solid #F0E4D0' : 'none' }}>
+                            <div style={{ flex:1 }}>
+                              <div style={{ fontWeight:700, fontSize:14 }}>{item.product_name}</div>
+                              <div style={{ fontSize:12, color:'#8B6A40', marginTop:3, display:'flex', flexWrap:'wrap', gap:6 }}>
+                                <span style={{ background:'#F0E8DC', borderRadius:6, padding:'2px 8px' }}>{item.size}</span>
+                                <span style={{ background:'#F0E8DC', borderRadius:6, padding:'2px 8px' }}>{item.sweetness}</span>
+                                <span style={{ background:'#F0E8DC', borderRadius:6, padding:'2px 8px' }}>{item.ice}</span>
+                                {item.toppings?.filter(Boolean).map((t,j) => (
+                                  <span key={j} style={{ background:'#FDF0DC', color:'#C05621', borderRadius:6, padding:'2px 8px' }}>+{t}</span>
+                                ))}
+                              </div>
+                            </div>
+                            <div style={{ textAlign:'right', flexShrink:0, marginLeft:16 }}>
+                              <div style={{ fontSize:12, color:'#8B6A40' }}>× {item.qty}</div>
+                              <div style={{ fontWeight:700 }}>NT${item.unit_price * item.qty}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Price summary + member info */}
+                      <div style={{ padding:'12px 18px 16px', borderTop:'1px solid #F0E4D0', display:'flex', gap:24, flexWrap:'wrap' }}>
+                        <div style={{ flex:1, minWidth:180 }}>
+                          <div style={{ fontWeight:700, fontSize:13, color:'#5D3A1A', marginBottom:8 }}>💰 金額明細</div>
+                          <div style={{ fontSize:13, color:'#5D3A1A', lineHeight:2 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between' }}><span>小計</span><span>NT${o.subtotal}</span></div>
+                            {o.discount > 0 && <div style={{ display:'flex', justifyContent:'space-between', color:'#276749' }}><span>優惠折抵</span><span>-NT${o.discount}</span></div>}
+                            {o.points_used > 0 && <div style={{ display:'flex', justifyContent:'space-between', color:'#6B46C1' }}><span>點數折抵</span><span>-NT${o.points_used}</span></div>}
+                            <div style={{ display:'flex', justifyContent:'space-between', fontWeight:900, fontSize:15, paddingTop:6, borderTop:'1.5px solid #E8D5B7', marginTop:4 }}>
+                              <span>總計</span><span style={{ color:'#C05621' }}>NT${o.total}</span>
+                            </div>
+                          </div>
+                        </div>
+                        {o.profiles && (
+                          <div style={{ flex:1, minWidth:180 }}>
+                            <div style={{ fontWeight:700, fontSize:13, color:'#5D3A1A', marginBottom:8 }}>👤 會員資訊</div>
+                            <div style={{ fontSize:13, color:'#5D3A1A', lineHeight:2 }}>
+                              <div>姓名：{o.profiles.name || '未設定'}</div>
+                              <div>電話：{o.profiles.phone || '未設定'}</div>
+                              {o.points_earned > 0 && <div style={{ color:'#6B46C1' }}>本次累積：+{o.points_earned} 點</div>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
