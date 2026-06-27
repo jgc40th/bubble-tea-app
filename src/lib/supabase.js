@@ -39,7 +39,7 @@ export function signInWithLine() {
     provider: 'custom:line',
     options: {
       redirectTo: `${window.location.origin}/?callback=1`,
-      scopes: 'openid profile email',  // No 'openid' — LINE uses HS256 which Supabase rejects
+      scopes: 'openid profile email',
     },
   })
 }
@@ -203,18 +203,20 @@ export async function adminFetchMembers() {
 }
 
 export async function adminGrantCoupon(userId, couponId) {
-  return supabase.from('member_coupons').upsert({ user_id: userId, coupon_id: couponId })
+  // Use RPC to bypass RLS — admin operation
+  const { data, error } = await supabase.rpc('admin_grant_coupon', {
+    p_user_id: userId,
+    p_coupon_id: Number(couponId),
+  })
+  return { data, error }
 }
 
 export async function adminGrantPoints(userId, points, reason) {
-  // Get current balance
-  const { data: profile } = await supabase.from('profiles').select('points').eq('id', userId).single()
-  const newBalance = (profile?.points || 0) + points
-  await supabase.from('profiles').update({ points: newBalance }).eq('id', userId)
-  await supabase.from('point_logs').insert({
-    user_id: userId,
-    change: points,
-    reason,
-    balance_after: newBalance,
+  // Use RPC to bypass RLS — admin operation
+  const { data, error } = await supabase.rpc('admin_grant_points', {
+    p_user_id: userId,
+    p_points: Number(points),
+    p_reason: reason,
   })
+  return { data, error }
 }
