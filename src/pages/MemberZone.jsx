@@ -102,10 +102,24 @@ export default function MemberZone({ onBack, tab: initTab = 'profile' }) {
               </div>
             ))}
             <div style={{ marginBottom:20 }}>
-              <div style={{ fontWeight:700, fontSize:13, color:'#5D3A1A', marginBottom:6 }}>LINE 綁定</div>
-              {profile?.line_uid
-                ? <div style={{ ...S.badge, display:'inline-block' }}>✅ 已綁定 LINE 帳號</div>
-                : <div style={{ fontSize:13, color:'#8B6A40' }}>尚未綁定 LINE — 點「LINE 登入」後自動綁定</div>}
+              <div style={{ fontWeight:700, fontSize:13, color:'#5D3A1A', marginBottom:8 }}>LINE 綁定</div>
+              {profile?.line_uid ? (
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <span style={{ background:'#C6F6D5', color:'#276749', borderRadius:20, padding:'4px 14px', fontWeight:700, fontSize:13 }}>
+                    ✅ 已綁定 LINE 帳號
+                  </span>
+                  <span style={{ fontSize:12, color:'#8B6A40' }}>UID: {profile.line_uid.slice(0,8)}...</span>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize:13, color:'#8B6A40', marginBottom:8 }}>尚未綁定 LINE 帳號</div>
+                  <button style={{ background:'#06C755', color:'#fff', border:'none', borderRadius:8, padding:'8px 16px', fontWeight:700, cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', gap:6 }}
+                    onClick={() => window.location.href = '/'}> 
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629"/></svg>
+                    前往 LINE 登入綁定
+                  </button>
+                </div>
+              )}
             </div>
             <button style={S.btn} onClick={saveProfile} disabled={saving}>{saving ? '儲存中...' : '儲存變更'}</button>
           </div>
