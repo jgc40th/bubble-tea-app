@@ -318,6 +318,7 @@ function ConsumerView({ onSwitchAdmin }) {
   const [showCart, setShowCart]     = useState(false)
   const [showAuth, setShowAuth]     = useState(false)
   const [showMember, setShowMember] = useState(false)
+  const [pendingCart, setPendingCart] = useState(false) // open cart after login
   const [memberTab, setMemberTab]     = useState('profile')
   const [successOrder, setSuccessOrder] = useState(null)
   const [selStore, setSelStore]     = useState(STORES[0])
@@ -326,6 +327,14 @@ function ConsumerView({ onSwitchAdmin }) {
     fetchCategories().then(r => setCategories(r.data || []))
     fetchProducts().then(r => setProducts(r.data || []))
   }, [])
+
+  // After login, open cart if user was trying to checkout
+  useEffect(() => {
+    if (user && pendingCart) {
+      setPendingCart(false)
+      setShowCart(true)
+    }
+  }, [user, pendingCart])
 
   const visibleProducts = products
     .filter(p => !selCategory || p.category_id === selCategory)
@@ -419,7 +428,10 @@ function ConsumerView({ onSwitchAdmin }) {
           ) : (
             <button style={S.btn} onClick={() => setShowAuth(true)}>登入 / 註冊</button>
           )}
-          <button style={{ ...S.btnOut, position:'relative' }} onClick={() => setShowCart(true)}>
+          <button style={{ ...S.btnOut, position:'relative' }} onClick={() => {
+            if (!user) { setPendingCart(true); setShowAuth(true); return }
+            setShowCart(true)
+          }}>
             🛒 {cart.length > 0 && <span style={{ background:'#E53E3E', color:'#fff', borderRadius:50, padding:'2px 6px', fontSize:11, marginLeft:4 }}>{cart.reduce((s,i)=>s+i.qty,0)}</span>}
           </button>
           <button style={{ ...S.btn, fontSize:11, padding:'5px 10px' }} onClick={onSwitchAdmin}>門市後台</button>
@@ -464,7 +476,19 @@ function ConsumerView({ onSwitchAdmin }) {
         })}
       </div>
 
-      {addModal && <AddToCartModal product={addModal} onClose={() => setAddModal(null)} onConfirm={item => { setCart(p=>[...p,item]); setAddModal(null) }} />}
+      {addModal && <AddToCartModal product={addModal} onClose={() => setAddModal(null)}
+        onConfirm={item => {
+          if (!user) {
+            // Save intent: add to cart then open cart after login
+            setCart(p=>[...p,item])
+            setAddModal(null)
+            setPendingCart(true)
+            setShowAuth(true)
+          } else {
+            setCart(p=>[...p,item])
+            setAddModal(null)
+          }
+        }} />}
       {showCart && <CartModal cart={cart} onRemove={i => setCart(p=>p.filter((_,idx)=>idx!==i))} onCheckout={checkout} onClose={() => setShowCart(false)} user={user} profile={profile} />}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {successOrder && <SuccessModal order={successOrder} onClose={() => setSuccessOrder(null)} />}
